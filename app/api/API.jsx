@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "https://backendairquality.onrender.com",
+  baseURL: "https://aerovision-backend-62f5.onrender.com",
   timeout: 60000, // 60 seconds for Render cold starts (reduced from 120s)
   headers: {
     "Content-Type": "application/json",
@@ -81,7 +81,6 @@ const handleApiError = (error, context = "") => {
       : null,
   });
 
-  // Network errors (no response received)
   if (error.code === "ECONNABORTED") {
     const networkError = new Error(
       `Request timeout after ${
@@ -108,9 +107,7 @@ const handleApiError = (error, context = "") => {
     throw networkError;
   }
 
-  // HTTP error responses
   const { status, statusText, data } = error.response;
-
   let errorMessage = "";
   let errorCode = "";
 
@@ -162,7 +159,6 @@ export const fetchAirQualityData = async (city) => {
       city: city,
     });
 
-    // Validate response data
     if (!data || typeof data !== "object") {
       const dataError = new Error("Invalid data received from server");
       dataError.code = "DATA_ERROR";
@@ -178,7 +174,6 @@ export const fetchAirQualityData = async (city) => {
   } catch (error) {
     console.error(`❌ Failed to fetch air quality data for: ${city}`);
     handleApiError(error, "Air Quality Data");
-    // handleApiError already throws, but we add this to be explicit
     throw error;
   }
 };
@@ -190,7 +185,6 @@ export const weatherDetails = async (city) => {
       city: city,
     });
 
-    // Validate response data
     if (!data || typeof data !== "object") {
       const dataError = new Error("Invalid weather data received from server");
       dataError.code = "DATA_ERROR";
@@ -206,14 +200,12 @@ export const weatherDetails = async (city) => {
   } catch (error) {
     console.error(`❌ Failed to fetch weather data for: ${city}`);
     handleApiError(error, "Weather Data");
-    // handleApiError already throws, but we add this to be explicit
     throw error;
   }
 };
 
 export const fetchStationAQI = async (stationId) => {
   try {
-    // Create axios instance for the station AQI API
     const stationApi = axios.create({
       baseURL: "https://erc.mp.gov.in",
       timeout: 10000,
@@ -227,7 +219,6 @@ export const fetchStationAQI = async (stationId) => {
       `/EnvAlert/Wa-CityAQI?id=${stationId}`
     );
 
-    // Validate response data
     if (!data) {
       const dataError = new Error("No data received for station");
       dataError.code = "DATA_ERROR";
@@ -241,7 +232,6 @@ export const fetchStationAQI = async (stationId) => {
       fetchedTime: Date.now(),
     };
   } catch (error) {
-    // Log error but don't throw to prevent one failed station from breaking the whole map
     console.error(
       `Error fetching AQI for station ${stationId}:`,
       error.message
@@ -255,7 +245,6 @@ export const fetchStationAQI = async (stationId) => {
   }
 };
 
-// Fetch AQI data for multiple stations
 export const fetchMultipleStationsAQI = async (stationIds) => {
   try {
     const promises = stationIds.map((id) => fetchStationAQI(id));
@@ -283,5 +272,69 @@ export const fetchMultipleStationsAQI = async (stationIds) => {
     }));
   }
 };
+
+// ── NEW ADDITIONS ─────────────────────────────────────────────────────────────
+
+// MP Cities supported by your backend
+export const MP_CITIES = [
+  "Indore", "Bhopal", "Jabalpur", "Gwalior", "Ujjain",
+  "Sagar", "Dewas", "Satna", "Ratlam", "Rewa",
+  "Katni", "Singrauli", "Khandwa", "Khargone", "Damoh",
+  "Neemuch", "Panna", "Pithampur", "Narsinghpur", "Maihar",
+  "Mandideep", "Betul", "Anuppur", "Chhindwara", "Bhind",
+  "Morena", "Shivpuri", "Chhatarpur", "Seoni", "Balaghat",
+];
+
+// Fetch MP city AQI rankings
+export const fetchMPRanking = async (city) => {
+  try {
+    console.log(`🏆 Fetching MP city rankings for: ${city}`);
+    const { data } = await api.post("/mp_ranking", { city });
+
+    if (!data || typeof data !== "object") {
+      const dataError = new Error("Invalid ranking data received from server");
+      dataError.code = "DATA_ERROR";
+      throw dataError;
+    }
+
+    console.log(`✅ MP Rankings received for: ${city}`);
+    return {
+      ...data,
+      fetchedAt: new Date().toISOString(),
+      fetchedTime: Date.now(),
+    };
+  } catch (error) {
+    console.error(`❌ Failed to fetch MP rankings for: ${city}`);
+    handleApiError(error, "MP Rankings");
+    throw error;
+  }
+};
+
+// Fetch 30-day monthly average pollutant data
+export const fetchMonthlyAverage = async (city) => {
+  try {
+    console.log(`📅 Fetching monthly average for: ${city}`);
+    const { data } = await api.post("/monthly_average", { city });
+
+    if (!data || typeof data !== "object") {
+      const dataError = new Error("Invalid monthly data received from server");
+      dataError.code = "DATA_ERROR";
+      throw dataError;
+    }
+
+    console.log(`✅ Monthly average received for: ${city}`);
+    return {
+      ...data,
+      fetchedAt: new Date().toISOString(),
+      fetchedTime: Date.now(),
+    };
+  } catch (error) {
+    console.error(`❌ Failed to fetch monthly average for: ${city}`);
+    handleApiError(error, "Monthly Average");
+    throw error;
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default api;
